@@ -94,6 +94,7 @@ def consulta_tiny():
             pedido_tiny = obter_pedido(id_pedido)
             situacao = pedido_tiny['situacao']
             transportadora_tiny = pedido_tiny['nome_transportador']
+            cliente = pedido_tiny['cliente']['nome']
             if pedido_tiny != None:
                 id_nota = pedido_tiny['id_nota_fiscal']
                 print(f'id_nota: {id_nota}')
@@ -110,7 +111,7 @@ def consulta_tiny():
     # Não gerar etiqueta quando situacao == Cancelado
     if situacao == None or situacao == 'Cancelado':
         messagebox.showerror("Cancelado", "Pedido CANCELADO na Tiny")
-        return
+        return pedido.delete(0, tk.END)
     else:
         # Se a transportadora for diferente de motoboy, consulta a etiqueta na intelipost
         if transportadora_tiny not in ["VIA SANTOS EXPRESS LTDA - ME", "Ativmob"]:
@@ -449,9 +450,7 @@ def consulta_tiny():
             #Insere as chaves de nota em uma lista para verificação
             chaves.append(chave)
 
-    
     pedido.delete(0, tk.END)
-
 
 
 def pesquisar_id_pedido_miliapp(params):
@@ -570,6 +569,7 @@ def acionar_botao(event):
 def tipo(event):
     global tipo_leitor
     tipo_leitor = options.get()
+
 
 #Seleção de tipo leitura de pedido ou nota
 options = ttk.Combobox(root, state='readonly', values=['Pedido', 'Nota Fiscal'])
