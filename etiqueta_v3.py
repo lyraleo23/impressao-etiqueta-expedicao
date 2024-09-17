@@ -66,6 +66,7 @@ def consulta_tiny():
         if tipo_leitor == 'Pedido':
             print('buscando pelo número do pedido...')
             numero_pedido = user_input
+            nota_fiscal = None
             numero_nota = None
             params = {
                 'numero_tiny': numero_pedido,
@@ -89,18 +90,28 @@ def consulta_tiny():
         print(f'Erro ao obter id_pedido: {e}')
         id_pedido = None
 
+    if id_pedido == None and numero_nota != None:
+        try:
+            pesquisa_nota = pesquisar_nota_fiscal(numero_nota)
+            id_nota = pesquisa_nota['id']
+            print(f'id_nota: {id_nota}')
+            nota_fiscal = buscar_nota_fiscal(id_nota)
+            id_pedido = nota_fiscal['id_venda']
+        except Exception as e:
+            print('Erro ao tentar encontrar id_pedido pelo numero_nota')   
+
     try:    
         if id_pedido != None:
             pedido_tiny = obter_pedido(id_pedido)
             situacao = pedido_tiny['situacao']
             transportadora_tiny = pedido_tiny['nome_transportador']
             cliente = pedido_tiny['cliente']['nome']
-            if pedido_tiny != None:
+            if pedido_tiny != None and nota_fiscal == None:
                 id_nota = pedido_tiny['id_nota_fiscal']
                 print(f'id_nota: {id_nota}')
                 nota_fiscal = buscar_nota_fiscal(id_nota)
-                if numero_nota == None:
-                    numero_nota = nota_fiscal['numero']
+            if numero_nota == None:
+                numero_nota = nota_fiscal['numero']
         else:
            messagebox.showerror("Erro!", "Pedido não encontrado!")
            return
@@ -517,8 +528,8 @@ def pesquisar_nota_fiscal(numero_nota):
         messagebox.showerror("Erro", "Pedido sem nota fiscal")
     else:
         #Obtém o número da nota
-        id_nota = response['retorno']['notas_fiscais']['nota_fiscal']['id']
-        return id_nota
+        # id_nota = response['retorno']['notas_fiscais'][0]['nota_fiscal']['id']
+        return response['retorno']['notas_fiscais'][0]['nota_fiscal']
 
 
 def buscar_nota_fiscal(id_nota):
