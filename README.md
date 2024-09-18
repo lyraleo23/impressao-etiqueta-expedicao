@@ -6,7 +6,7 @@ Imprimir as etiquetas de expedição consultando Tiny e Intelipost a partir do n
 
 ## Arquitetura<br/>
 Python<br/>
-Excutavel pelo auto-py-to-exe
+Excutavel pelo auto-py-to-exe<br/>
 <br/>
 
 ## Execução do código<br/>

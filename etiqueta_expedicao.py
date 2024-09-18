@@ -75,6 +75,7 @@ def consulta_tiny():
             }
         elif tipo_leitor == 'Nota Fiscal':
             print('buscando pela nota fiscal...')
+            nota_fiscal = None
             numero_nota = user_input
             params = {
                 'numero_nota_fiscal': numero_nota,
@@ -97,6 +98,7 @@ def consulta_tiny():
             print(f'id_nota: {id_nota}')
             nota_fiscal = buscar_nota_fiscal(id_nota)
             id_pedido = nota_fiscal['id_venda']
+            print(f'id_pedido: {id_pedido}')
         except Exception as e:
             print('Erro ao tentar encontrar id_pedido pelo numero_nota')   
 
@@ -104,13 +106,15 @@ def consulta_tiny():
         if id_pedido != None:
             pedido_tiny = obter_pedido(id_pedido)
             situacao = pedido_tiny['situacao']
+            print(f'situacao: {situacao}')
             transportadora_tiny = pedido_tiny['nome_transportador']
             cliente = pedido_tiny['cliente']['nome']
+
             if pedido_tiny != None and nota_fiscal == None:
                 id_nota = pedido_tiny['id_nota_fiscal']
                 print(f'id_nota: {id_nota}')
                 nota_fiscal = buscar_nota_fiscal(id_nota)
-            if numero_nota == None:
+            if numero_nota == None and nota_fiscal != None:
                 numero_nota = nota_fiscal['numero']
         else:
            messagebox.showerror("Erro!", "Pedido não encontrado!")
@@ -155,6 +159,7 @@ def consulta_tiny():
                         chave = content['shipment_order_volume_array'][0]['shipment_order_volume_invoice']['invoice_key']
                         status_intelipost = content['shipment_order_volume_array'][0]['shipment_order_volume_state']
 
+            print(f'status_intelipost: {status_intelipost}')
             if status_intelipost != 'CANCELLED':
                 etiqueta_intelipost = obtem_etiqueta_intelipost(pedido_envio, numero_volume)
                 
@@ -487,33 +492,48 @@ def pesquisar_id_pedido_miliapp(params):
 
 
 def obter_pedido(id_pedido):
-    #Definições para busca api
-    url = "https://api.tiny.com.br/api2/pedido.obter.php"
-    data = {
-        "token": TOKEN_TINY,
-        "id": id_pedido,
-        "formato": 'json'
-    }
-    
-    #Consulta para obter id da nota na tiny
-    response = requests.get(url=url, params=data).json()
-    
-    #Obter id da nota e nome do cliente
+    status = 0
+    codigo_erro = 0
+    while status != 'OK':
+        url = "https://api.tiny.com.br/api2/pedido.obter.php"
+        data = {
+            "token": TOKEN_TINY,
+            "id": id_pedido,
+            "formato": 'json'
+        }
+        response = requests.get(url=url, params=data).json()
+
+        status = response['retorno']['status']
+        print(f'status obter_pedido: {status}')
+        if status == 'Erro':
+            codigo_erro = response['retorno']['codigo_erro']
+            print(f'codigo_erro obter_pedido: {codigo_erro}')
+            if codigo_erro == 32:
+                return None
+        
     return response['retorno']['pedido']
 
 
 def alterar_situacao_pedido(id_pedido):
-    url = 'https://api.tiny.com.br/api2/pedido.alterar.situacao'
-    
-    data = {'token': TOKEN_TINY,
-        'id': id_pedido,
-        'situacao': 'enviado',
-        'formato': 'json'
-    }
-
-    requests.post(url=url, data=data).json()
+    status = 0
+    codigo_erro = 0
+    while status != 'OK':
+        url = 'https://api.tiny.com.br/api2/pedido.alterar.situacao'
+        data = {'token': TOKEN_TINY,
+            'id': id_pedido,
+            'situacao': 'enviado',
+            'formato': 'json'
+        }
+        response = requests.post(url=url, data=data).json()
+        
+        status = response['retorno']['status']
+        print(f'status obter_pedido: {status}')
+        if status == 'Erro':
+            codigo_erro = response['retorno']['codigo_erro']
+            print(f'codigo_erro obter_pedido: {codigo_erro}')
+            if codigo_erro == 32:
+               return None
     return
-    
 
 def pesquisar_nota_fiscal(numero_nota):
     url = "https://api.tiny.com.br/api2/notas.fiscais.pesquisa.php"
@@ -527,27 +547,30 @@ def pesquisar_nota_fiscal(numero_nota):
     if status == 'Erro':
         messagebox.showerror("Erro", "Pedido sem nota fiscal")
     else:
-        #Obtém o número da nota
-        # id_nota = response['retorno']['notas_fiscais'][0]['nota_fiscal']['id']
         return response['retorno']['notas_fiscais'][0]['nota_fiscal']
 
 
 def buscar_nota_fiscal(id_nota):
-    url = "https://api.tiny.com.br/api2/nota.fiscal.obter.php"
-    data = {
-        "token": TOKEN_TINY,
-        "id": id_nota,
-        "formato": 'json'
-    }
-    
-    #Armazena informações de resposta
-    response = requests.get(url=url, params=data).json()
-    status = response['retorno']['status']
-    if status == 'Erro':
-        messagebox.showerror("Erro", "Pedido sem nota fiscal")
-        return None
-    else:
-        return response['retorno']['nota_fiscal']
+    status = 0
+    codigo_erro = 0
+    while status != 'OK':
+        url = "https://api.tiny.com.br/api2/nota.fiscal.obter.php"
+        data = {
+            "token": TOKEN_TINY,
+            "id": id_nota,
+            "formato": 'json'
+        }
+        response = requests.get(url=url, params=data).json()
+
+        status = response['retorno']['status']
+        print(f'status buscar_nota_fiscal: {status}')
+        if status == 'Erro':
+            codigo_erro = response['retorno']['codigo_erro']
+            if (codigo_erro == 32):
+                messagebox.showerror("Erro", "Pedido sem nota fiscal")
+                return None
+        else:
+            return response['retorno']['nota_fiscal']
         
 
 def consulta_intelipost(numero_nota):
