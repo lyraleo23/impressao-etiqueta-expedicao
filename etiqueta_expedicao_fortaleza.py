@@ -12,16 +12,18 @@ from barcode.writer import ImageWriter
 from datetime import datetime
 from tkinter import ttk
 from tkinter import messagebox
-load_dotenv("//10.1.1.5/j/python/ttk-theme/.env")
+from pathlib import Path
 
-TOKEN_TINY = str(os.getenv("TOKEN_TINY"))
-API_INTELIPOST = str(os.getenv("API_KEY_INTELIPOST"))
+
+load_dotenv()
+TOKEN_TINY = os.getenv('TOKEN_TINY')
+API_INTELIPOST = os.getenv("API_KEY_INTELIPOST")
 
 root = tk.Tk()
 root.title("Impressão de Etiqueta")
-root.tk.call('source', '//10.1.1.5/j/python/ttk-theme/Forest-ttk-theme-master/forest-dark.tcl')
-ttk.Style().theme_use('forest-dark')
-root.iconbitmap('//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico')
+# root.tk.call('source', '//10.1.1.5/j/python/ttk-theme/Forest-ttk-theme-master/forest-dark.tcl')
+# ttk.Style().theme_use('forest-dark')
+# root.iconbitmap('//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico')
 root.geometry("250x180")
 root.resizable(0, 0)
 
@@ -35,17 +37,31 @@ hora = hora.replace(":", "-")
 hora = hora[:8]
 
 #Define os dados para a criação do arquivo com as informações da transportadora
-caminho = f"//10.1.1.5/j/python/arquivos/etiquetas/Romaneios/{data}"
-nome_arquivo = caminho + f"/Romaneio-{hora}"
+curr_dir = os.getcwd()
+caminho = curr_dir + f'\\Romaneios\\{data}'
+print(caminho)
+# caminho = f"//10.1.1.5/j/python/arquivos/etiquetas/Romaneios/{data}"
+nome_arquivo = caminho + f"\\Romaneio-{hora}"
+print(nome_arquivo)
 
 #Define os dados para a criação do arquivo com as informações do motoboy
 dados_motoboy = "Número NF, Número Pedido, Cliente, Cidade, Bairro, Valor Motoboy, Período"
-arquivo_motoboy = caminho + f"/motoboy-romaneio-{hora}"
+arquivo_motoboy = caminho + f"\\motoboy-romaneio-{hora}"
 
 # Verifica se a pasta já existe
 if not os.path.exists(caminho):
     os.makedirs(caminho)
 
+# Pasta etiquetas
+pasta_etiquetas = curr_dir + f'\\etiquetas'
+if not os.path.exists(pasta_etiquetas):
+    os.makedirs(pasta_etiquetas)
+
+# Pasta barcodes
+pasta_barcodes = curr_dir + f'\\barcodes'
+if not os.path.exists(pasta_barcodes):
+    os.makedirs(pasta_barcodes)
+1
 # Insere o cabeçalho no arquivo motoboy
 with open(f'{arquivo_motoboy}.txt', 'w') as arquivomotoboy:
     arquivomotoboy.write(str(dados_motoboy))
@@ -148,7 +164,6 @@ def consulta_tiny():
                 status_intelipost = intelipost['content'][0]['shipment_order_volume_array'][0]['shipment_order_volume_state']
                 print('1 resultado')
             elif len(intelipost['content']) > 1:
-                # print(f'{len(intelipost['content'])} resultados')
                 for x in range(0,len(intelipost['content'])):
                     content = intelipost['content'][x]
                     sales_channel = content['sales_channel']
@@ -175,8 +190,12 @@ def consulta_tiny():
                 #webbrowser.open(link)
                 nome = etiqueta_intelipost['content']['order_number']
                 
-                wget.download(link, f"//10.1.1.5/j/python/arquivos/etiquetas/{nome}.pdf")
-                pdffile = r'\\10.1.1.5\j\python\arquivos\etiquetas\{}.pdf'.format(nome)
+                print(f'pasta_etiquetas: {pasta_etiquetas}\\{nome}.pdf')
+                wget.download(link, pasta_etiquetas + f"\\{nome}.pdf")
+                pdf_path = pasta_etiquetas
+                print(pdf_path)
+                # pdffile = r'{}{}.pdf'.format(pasta_etiquetas, nome)
+                pdffile = f'{pasta_etiquetas}\\{nome}.pdf'
                 
                 # Imprime o arquivo
                 os.startfile(pdffile, 'print')
@@ -218,15 +237,15 @@ def consulta_tiny():
             obs = nota_fiscal['obs']
             
             barcode = Code128(numero_pedido, writer=ImageWriter())
-            barcode.save(f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
+            barcode.save(f'{pasta_barcodes}/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
             
             regex = r"(.*?)\s*" + "ICMS"
             match = re.search(regex, obs, re.DOTALL)
             
             # Criação do PDF
-            c = canvas.Canvas(f"//10.1.1.5/j/python/arquivos/etiquetas/{numero_nota}.pdf", pagesize=(300, 400))
-            logo_miligrama = '//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico'
-            barcode_i = f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}.png'
+            c = canvas.Canvas(f"{pasta_etiquetas}/{numero_nota}.pdf", pagesize=(300, 400))
+            logo_miligrama = curr_dir + '/icon-Miligrama.ico'
+            barcode_i = f'{pasta_barcodes}/barcode_{numero_pedido}.png'
             x_start = 10
             y_start = 270
             text = c.beginText(165, 237)
@@ -265,7 +284,8 @@ def consulta_tiny():
             c.save()
             
             # Cria uma variável com o caminho do arquivo
-            pdffile = r'\\10.1.1.5\j\python\arquivos\etiquetas\{}.pdf'.format(numero_nota)
+            # pdffile = r'{}\{}.pdf'.format(pasta_etiquetas, numero_nota)
+            pdffile = f'{pasta_etiquetas}\\{numero_nota}.pdf'
             
             # Imprime o arquivo
             os.startfile(pdffile, 'print')
@@ -402,14 +422,14 @@ def consulta_tiny():
                 valor_motoboy = cidades[cidade]
             
             barcode = Code128(numero_pedido, writer=ImageWriter())
-            barcode.save(f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
+            barcode.save(f'{pasta_barcodes}/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
             
             # Criação do PDF
             regex = r"(.*?)\s*" + "ICMS"
             match = re.search(regex, obs, re.DOTALL)
-            c = canvas.Canvas(f"//10.1.1.5/j/python/arquivos/etiquetas/{numero_nota}.pdf", pagesize=(300, 400))
-            logo_miligrama = '//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico'
-            barcode_i = f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}.png'
+            c = canvas.Canvas(f"{pasta_etiquetas}/{numero_nota}.pdf", pagesize=(300, 400))
+            logo_miligrama = curr_dir + '/icon-Miligrama.ico'
+            barcode_i = f'{pasta_barcodes}/barcode_{numero_pedido}.png'
             x_start = 10
             y_start = 270
             text = c.beginText(165, 237)
@@ -448,7 +468,8 @@ def consulta_tiny():
             c.save()
             
             # Cria uma variável com o caminho do arquivo
-            pdffile = r'\\10.1.1.5\j\python\arquivos\etiquetas\{}.pdf'.format(numero_nota)
+            # pdffile = r'{}\{}.pdf'.format(pasta_etiquetas, numero_nota)
+            pdffile = f'{pasta_etiquetas}\\{numero_nota}.pdf'
             
             # Imprime o arquivo
             os.startfile(pdffile, 'print')
@@ -496,7 +517,6 @@ def pesquisar_id_pedido_miliapp(params):
     else:
         return None
 
-
 def obter_pedido(id_pedido):
     status = 0
     codigo_erro = 0
@@ -518,7 +538,6 @@ def obter_pedido(id_pedido):
                 return None
         
     return response['retorno']['pedido']
-
 
 def alterar_situacao_pedido(id_pedido):
     status = 0
@@ -555,7 +574,6 @@ def pesquisar_nota_fiscal(numero_nota):
     else:
         return response['retorno']['notas_fiscais'][0]['nota_fiscal']
 
-
 def buscar_nota_fiscal(id_nota):
     status = 0
     codigo_erro = 0
@@ -578,7 +596,6 @@ def buscar_nota_fiscal(id_nota):
         else:
             return response['retorno']['nota_fiscal']
         
-
 def consulta_intelipost(numero_nota):
     url = f"https://api.intelipost.com.br/api/v1/shipment_order/invoice/" + str(numero_nota)
     headers = {
@@ -588,7 +605,6 @@ def consulta_intelipost(numero_nota):
 
     response = requests.get(url, headers=headers, timeout=5).json()
     return response
-
 
 def obtem_etiqueta_intelipost(pedido_envio, numero_volume):
     url = "https://api.intelipost.com.br/api/v1/shipment_order/get_label/{}/{}".format(pedido_envio, numero_volume)
@@ -601,10 +617,8 @@ def obtem_etiqueta_intelipost(pedido_envio, numero_volume):
     response = requests.get(url, headers=headers).json()
     return response
 
-
 def acionar_botao(event):
     consulta_tiny()
-
 
 def tipo(event):
     global tipo_leitor
