@@ -175,7 +175,7 @@ def consulta_tiny():
             # Criação de variáveis para geração do pdf
             numero_pedido = pedido_tiny['numeroPedido']
             # vendedor = pedido_tiny['nome_vendedor']
-            entrega = nota_fiscal['enderecoEntrega']
+            entrega = nota_fiscal['cliente']['endereco']
             rua = entrega['endereco']
             numero = entrega['numero']
             complemento = entrega['complemento']
@@ -190,7 +190,7 @@ def consulta_tiny():
             chave = nota_fiscal['chaveAcesso']
             obs = pedido_tiny['observacoes']
             
-            barcode = Code128(numero_pedido, writer=ImageWriter())
+            barcode = Code128(str(numero_pedido), writer=ImageWriter())
             barcode.save(f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
             
             regex = r"(.*?)\s*" + "ICMS"
@@ -204,7 +204,8 @@ def consulta_tiny():
             y_start = 270
             text = c.beginText(165, 237)
             text.setFont("Helvetica", 7)
-            text.textLines(f"{match.group(1)}")
+            # text.textLines(f"{match.group(1)}")
+            text.textLines(obs)
             c.drawImage(logo_miligrama, x_start, y_start, width=40, preserveAspectRatio=True, mask='auto')
             c.setFont("Helvetica-Bold", 10)
             c.drawString(108, 375, f"PEDIDO {numero_pedido}")
@@ -265,7 +266,7 @@ def consulta_tiny():
             # Criação de variáveis para geração do pdf
             numero_pedido = pedido_tiny['numeroPedido']
             # vendedor = pedido_tiny['nome_vendedor']
-            entrega = nota_fiscal['enderecoEntrega']
+            entrega = nota_fiscal['cliente']['endereco']
             rua = entrega['endereco']
             numero = entrega['numero']
             complemento = entrega['complemento']
@@ -374,7 +375,8 @@ def consulta_tiny():
             else:
                 valor_motoboy = cidades[cidade]
             
-            barcode = Code128(numero_pedido, writer=ImageWriter())
+            print(numero_pedido)
+            barcode = Code128(str(numero_pedido), writer=ImageWriter())
             barcode.save(f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
             
             # Criação do PDF
@@ -387,7 +389,8 @@ def consulta_tiny():
             y_start = 270
             text = c.beginText(165, 237)
             text.setFont("Helvetica", 7)
-            text.textLines(f"{match.group(1)}")
+            # text.textLines(f"{match.group(1)}")
+            text.textLines(obs)
             c.drawImage(logo_miligrama, x_start, y_start, width=40, preserveAspectRatio=True, mask='auto')
             c.setFont("Helvetica-Bold", 10)
             c.drawString(108, 375, f"PEDIDO {numero_pedido}")
