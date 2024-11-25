@@ -104,6 +104,7 @@ def obter_notas_v3(access_token, params):
             total = response['paginacao']['total']
 
             lista_notas = [*lista_notas, *response['itens']]
+            print(lista_notas)
         except Exception as e:
             print(e)
             time.sleep(5)

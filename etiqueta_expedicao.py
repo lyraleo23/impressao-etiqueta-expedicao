@@ -12,7 +12,7 @@ from datetime import datetime
 from tkinter import ttk
 from tkinter import messagebox
 from api_miliapp import obter_tokens_tiny, get_vendas_filtro
-from api_tiny_v3 import obter_notas_v3, obter_nota_fiscal_v3, obter_pedido_v3, alterar_situacao_pedido_v3
+from api_tiny_v3 import obter_notas_v3, obter_nota_fiscal_v3, obter_pedido_v3, alterar_situacao_pedido_v3, obter_pedidos_v3
 from api_intelipost import consulta_entrega_nota, obter_etiqueta
 from impressao_etiqueta import gerar_root, preparar_romaneios
 load_dotenv("//10.1.1.5/j/python/ttk-theme/.env")
@@ -67,11 +67,19 @@ def consulta_tiny():
             params = {
                'numero': numero_nota
             }
-            pesquisa_nota = obter_notas_v3(params)
-            id_nota = pesquisa_nota['itens'][0]['id']
+            pesquisa_nota = obter_notas_v3(ACCESS_TOKEN, params)
+            id_nota = pesquisa_nota[0]['id']
             print(f'id_nota: {id_nota}')
             nota_fiscal = obter_nota_fiscal_v3(ACCESS_TOKEN, id_nota)
-            id_pedido = nota_fiscal['id_venda']
+            observacoes_nota = nota_fiscal['observacoes'].strip()
+            observacoes_nota = re.sub("[^0-9 ]", " ", observacoes_nota)
+            print(f'observacoes_nota: {observacoes_nota}')
+            numero_pedido = observacoes_nota
+            params = {
+                'numero': numero_pedido
+            }
+            pesquisa_pedido = obter_pedidos_v3(ACCESS_TOKEN, params)
+            id_pedido = pesquisa_pedido[0]['id']
             print(f'id_pedido: {id_pedido}')
         except Exception as e:
             messagebox.showerror('Erro', f'Erro ao tentar encontrar id_pedido pelo numero_nota: {e}')
