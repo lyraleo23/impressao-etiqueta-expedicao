@@ -1,5 +1,4 @@
 import requests
-import json
 import wget
 import os
 import re
@@ -12,64 +11,17 @@ from barcode.writer import ImageWriter
 from datetime import datetime
 from tkinter import ttk
 from tkinter import messagebox
-from pathlib import Path
-
+from api_miliapp import obter_tokens_tiny, get_vendas_filtro
+from api_tiny_v3 import obter_notas_v3, obter_nota_fiscal_v3, obter_pedido_v3, alterar_situacao_pedido_v3, obter_pedidos_v3
+from api_intelipost import consulta_entrega_nota, obter_etiqueta
+from impressao_etiqueta import gerar_root, preparar_romaneios_fortaleza
 
 load_dotenv()
-TOKEN_TINY = os.getenv('TOKEN_TINY')
-API_INTELIPOST = os.getenv("API_KEY_INTELIPOST")
+TOKEN_TINY = str(os.getenv("TOKEN_TINY"))
+TOKEN_INTELIPOST = str(os.getenv("API_KEY_INTELIPOST"))
 
-root = tk.Tk()
-root.title("Impressão de Etiqueta")
-# root.tk.call('source', '//10.1.1.5/j/python/ttk-theme/Forest-ttk-theme-master/forest-dark.tcl')
-# ttk.Style().theme_use('forest-dark')
-# root.iconbitmap('//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico')
-root.geometry("250x180")
-root.resizable(0, 0)
-
-dados = "Número NF, Número Pedido, Destinatário, Valor, Transportadora, Chave NFe, Duplicado"
-
-hoje = datetime.now()
-hoje_str = str(hoje)
-data = hoje_str[:10]
-hora = hoje_str[11:]
-hora = hora.replace(":", "-")
-hora = hora[:8]
-
-#Define os dados para a criação do arquivo com as informações da transportadora
-curr_dir = os.getcwd()
-caminho = curr_dir + f'\\Romaneios\\{data}'
-print(caminho)
-# caminho = f"//10.1.1.5/j/python/arquivos/etiquetas/Romaneios/{data}"
-nome_arquivo = caminho + f"\\Romaneio-{hora}"
-print(nome_arquivo)
-
-#Define os dados para a criação do arquivo com as informações do motoboy
-dados_motoboy = "Número NF, Número Pedido, Cliente, Cidade, Bairro, Valor Motoboy, Período"
-arquivo_motoboy = caminho + f"\\motoboy-romaneio-{hora}"
-
-# Verifica se a pasta já existe
-if not os.path.exists(caminho):
-    os.makedirs(caminho)
-
-# Pasta etiquetas
-pasta_etiquetas = curr_dir + f'\\etiquetas'
-if not os.path.exists(pasta_etiquetas):
-    os.makedirs(pasta_etiquetas)
-
-# Pasta barcodes
-pasta_barcodes = curr_dir + f'\\barcodes'
-if not os.path.exists(pasta_barcodes):
-    os.makedirs(pasta_barcodes)
-1
-# Insere o cabeçalho no arquivo motoboy
-with open(f'{arquivo_motoboy}.txt', 'w') as arquivomotoboy:
-    arquivomotoboy.write(str(dados_motoboy))
-
-# Insere o cabeçalho no arquivo transportadoras
-with open(f'{nome_arquivo}.txt', 'w') as arquivo:
-    arquivo.write(str(dados))
-
+root = gerar_root()
+nome_arquivo, arquivo_motoboy = preparar_romaneios_fortaleza()
 chaves = []
 
 def consulta_tiny():
@@ -78,6 +30,16 @@ def consulta_tiny():
     #Armazena o número do pedido informado
     user_input = pedido.get()
 
+    # Busca o access token da API V3 da Tiny
+    if origem == 'Curitiba':
+        origin = 'miligrama'
+        cnpj = '07413904000198'
+    elif origem == 'Fortaleza':
+        origin = 'miligrama_nordeste'
+        cnpj = '56982667000191'
+    ACCESS_TOKEN, REFRESH_TOKEN = obter_tokens_tiny(origin)
+
+    # Obtém o id_pedido
     try:
         if tipo_leitor == 'Pedido':
             print('buscando pelo número do pedido...')
@@ -86,8 +48,7 @@ def consulta_tiny():
             numero_nota = None
             params = {
                 'numero_tiny': numero_pedido,
-                'token': TOKEN_TINY,
-                'formato': 'json'
+                'cnpj': cnpj
             }
         elif tipo_leitor == 'Nota Fiscal':
             print('buscando pela nota fiscal...')
@@ -95,13 +56,13 @@ def consulta_tiny():
             numero_nota = user_input
             params = {
                 'numero_nota_fiscal': numero_nota,
-                'token': TOKEN_TINY,
-                'formato': 'json'
+                'cnpj': cnpj
             }
         else:
             messagebox.showerror('Erro', 'Selecione o tipo de leitura!')
             return
-        id_pedido = pesquisar_id_pedido_miliapp(params)
+        retorno = get_vendas_filtro(params)
+        id_pedido = retorno['idPedidoTiny']
         print(f'id_pedido: {id_pedido}')
     except Exception as e:
         messagebox.showerror('Erro', f'Erro ao obter id_pedido: {e}')
@@ -110,28 +71,40 @@ def consulta_tiny():
 
     if id_pedido == None and numero_nota != None:
         try:
-            pesquisa_nota = pesquisar_nota_fiscal(numero_nota)
-            id_nota = pesquisa_nota['id']
+            params = {
+               'numero': numero_nota
+            }
+            pesquisa_nota = obter_notas_v3(ACCESS_TOKEN, params)
+            id_nota = pesquisa_nota[0]['id']
             print(f'id_nota: {id_nota}')
-            nota_fiscal = buscar_nota_fiscal(id_nota)
-            id_pedido = nota_fiscal['id_venda']
+            nota_fiscal = obter_nota_fiscal_v3(ACCESS_TOKEN, id_nota)
+            observacoes_nota = nota_fiscal['observacoes'].strip()
+            observacoes_nota = re.sub("[^0-9 ]", " ", observacoes_nota)
+            print(f'observacoes_nota: {observacoes_nota}')
+            numero_pedido = observacoes_nota
+            params = {
+                'numero': numero_pedido
+            }
+            pesquisa_pedido = obter_pedidos_v3(ACCESS_TOKEN, params)
+            id_pedido = pesquisa_pedido[0]['id']
             print(f'id_pedido: {id_pedido}')
         except Exception as e:
             messagebox.showerror('Erro', f'Erro ao tentar encontrar id_pedido pelo numero_nota: {e}')
             print('Erro ao tentar encontrar id_pedido pelo numero_nota')   
 
+    # Obtém o pedido_tiny
     try:    
         if id_pedido != None:
-            pedido_tiny = obter_pedido(id_pedido)
+            pedido_tiny = obter_pedido_v3(ACCESS_TOKEN, id_pedido)
             situacao = pedido_tiny['situacao']
             print(f'situacao: {situacao}')
-            transportadora_tiny = pedido_tiny['nome_transportador']
+            transportadora_tiny = pedido_tiny['transportador']['nome']
             cliente = pedido_tiny['cliente']['nome']
 
             if pedido_tiny != None and nota_fiscal == None:
-                id_nota = pedido_tiny['id_nota_fiscal']
+                id_nota = pedido_tiny['idNotaFiscal']
                 print(f'id_nota: {id_nota}')
-                nota_fiscal = buscar_nota_fiscal(id_nota)
+                nota_fiscal = obter_nota_fiscal_v3(ACCESS_TOKEN, id_nota)
             if numero_nota == None and nota_fiscal != None:
                 numero_nota = nota_fiscal['numero']
         else:
@@ -143,14 +116,14 @@ def consulta_tiny():
         situacao = None
 
     # Não gerar etiqueta quando situacao == Cancelado
-    if situacao == None or situacao == 'Cancelado':
+    if situacao == None or situacao == 2:
         messagebox.showerror("Cancelado", "Pedido CANCELADO na Tiny")
         return pedido.delete(0, tk.END)
     else:
         # Se a transportadora for diferente de motoboy, consulta a etiqueta na intelipost
         if transportadora_tiny not in ["VIA SANTOS EXPRESS LTDA - ME", "Ativmob"]:
             try:
-                intelipost = consulta_intelipost(numero_nota)
+                intelipost = consulta_entrega_nota(TOKEN_INTELIPOST, numero_nota)
             except requests.exceptions.Timeout:
                 messagebox.showerror('Erro', 'Pedido não encontrado na intelipost')
             
@@ -182,7 +155,7 @@ def consulta_tiny():
 
             print(f'status_intelipost: {status_intelipost}')
             if status_intelipost != 'CANCELLED':
-                etiqueta_intelipost = obtem_etiqueta_intelipost(pedido_envio, numero_volume)
+                etiqueta_intelipost = obter_etiqueta(TOKEN_INTELIPOST, pedido_envio, numero_volume)
                 
                 #Salva o link e o nome do arquivo para armazenar
                 link = etiqueta_intelipost['content']['label_url']
@@ -190,12 +163,8 @@ def consulta_tiny():
                 #webbrowser.open(link)
                 nome = etiqueta_intelipost['content']['order_number']
                 
-                print(f'pasta_etiquetas: {pasta_etiquetas}\\{nome}.pdf')
-                wget.download(link, pasta_etiquetas + f"\\{nome}.pdf")
-                pdf_path = pasta_etiquetas
-                print(pdf_path)
-                # pdffile = r'{}{}.pdf'.format(pasta_etiquetas, nome)
-                pdffile = f'{pasta_etiquetas}\\{nome}.pdf'
+                wget.download(link, f"//10.1.1.5/j/python/arquivos/etiquetas/{nome}.pdf")
+                pdffile = r'\\10.1.1.5\j\python\arquivos\etiquetas\{}.pdf'.format(nome)
                 
                 # Imprime o arquivo
                 os.startfile(pdffile, 'print')
@@ -219,38 +188,39 @@ def consulta_tiny():
         # Caso seja Motoboy gera o pdf e faz a impressão da etiqueta
         elif transportadora_tiny == "Ativmob":
             # Criação de variáveis para geração do pdf
-            numero_pedido = pedido_tiny['numero']
-            vendedor = pedido_tiny['nome_vendedor']
-            entrega = nota_fiscal['endereco_entrega']
+            numero_pedido = pedido_tiny['numeroPedido']
+            # vendedor = pedido_tiny['nome_vendedor']
+            entrega = nota_fiscal['cliente']['endereco']
             rua = entrega['endereco']
             numero = entrega['numero']
             complemento = entrega['complemento']
             bairro = entrega['bairro']
             cep = entrega['cep']
-            cidade = entrega['cidade']
+            cidade = entrega['municipio']
             uf = entrega['uf']
-            telefone = entrega['fone']
-            transportadora = nota_fiscal['transportador']['nome']
+            telefone = pedido_tiny['cliente']['telefone']
+            transportadora = pedido_tiny['transportador']['nome']
             cliente = nota_fiscal['cliente']['nome']
-            valor = nota_fiscal['valor_nota']
-            chave = nota_fiscal['chave_acesso']
-            obs = nota_fiscal['obs']
+            valor = nota_fiscal['valor']
+            chave = nota_fiscal['chaveAcesso']
+            obs = pedido_tiny['observacoes']
             
-            barcode = Code128(numero_pedido, writer=ImageWriter())
-            barcode.save(f'{pasta_barcodes}/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
+            barcode = Code128(str(numero_pedido), writer=ImageWriter())
+            barcode.save(f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
             
             regex = r"(.*?)\s*" + "ICMS"
             match = re.search(regex, obs, re.DOTALL)
             
             # Criação do PDF
-            c = canvas.Canvas(f"{pasta_etiquetas}/{numero_nota}.pdf", pagesize=(300, 400))
-            logo_miligrama = curr_dir + '/icon-Miligrama.ico'
-            barcode_i = f'{pasta_barcodes}/barcode_{numero_pedido}.png'
+            c = canvas.Canvas(f"//10.1.1.5/j/python/arquivos/etiquetas/{numero_nota}.pdf", pagesize=(300, 400))
+            logo_miligrama = '//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico'
+            barcode_i = f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}.png'
             x_start = 10
             y_start = 270
             text = c.beginText(165, 237)
             text.setFont("Helvetica", 7)
-            text.textLines(f"{match.group(1)}")
+            # text.textLines(f"{match.group(1)}")
+            text.textLines(obs)
             c.drawImage(logo_miligrama, x_start, y_start, width=40, preserveAspectRatio=True, mask='auto')
             c.setFont("Helvetica-Bold", 10)
             c.drawString(108, 375, f"PEDIDO {numero_pedido}")
@@ -284,8 +254,7 @@ def consulta_tiny():
             c.save()
             
             # Cria uma variável com o caminho do arquivo
-            # pdffile = r'{}\{}.pdf'.format(pasta_etiquetas, numero_nota)
-            pdffile = f'{pasta_etiquetas}\\{numero_nota}.pdf'
+            pdffile = r'\\10.1.1.5\j\python\arquivos\etiquetas\{}.pdf'.format(numero_nota)
             
             # Imprime o arquivo
             os.startfile(pdffile, 'print')
@@ -304,29 +273,29 @@ def consulta_tiny():
                 arquivo.write(str(lista))
             
             #Alterar a situação
-            alterar_situacao_pedido(id_pedido)
+            alterar_situacao_pedido_v3(ACCESS_TOKEN, id_pedido, 5)
             
             #Insere as chaves de nota em uma lista para verificação
             chaves.append(chave)
         else:
             # Criação de variáveis para geração do pdf
-            numero_pedido = pedido_tiny['numero']
-            vendedor = pedido_tiny['nome_vendedor']
-            entrega = nota_fiscal['endereco_entrega']
+            numero_pedido = pedido_tiny['numeroPedido']
+            # vendedor = pedido_tiny['nome_vendedor']
+            entrega = nota_fiscal['cliente']['endereco']
             rua = entrega['endereco']
             numero = entrega['numero']
             complemento = entrega['complemento']
             bairro = entrega['bairro']
             cep = entrega['cep']
-            cidade = entrega['cidade']
+            cidade = entrega['municipio']
             uf = entrega['uf']
-            telefone = entrega['fone']
-            transportadora = nota_fiscal['transportador']['nome']
+            telefone = pedido_tiny['cliente']['telefone']
+            transportadora = pedido_tiny['transportador']['nome']
             cliente = nota_fiscal['cliente']['nome']
-            forma_envio = nota_fiscal['forma_frete']['descricao']
-            valor = nota_fiscal['valor_nota']
-            chave = nota_fiscal['chave_acesso']
-            obs = nota_fiscal['obs']
+            valor = nota_fiscal['valor']
+            chave = nota_fiscal['chaveAcesso']
+            obs = pedido_tiny['observacoes']
+            forma_envio = pedido_tiny['transportador']['formaFrete']['nome']
             bairros = {
                 'Abranches': 20,
                 'Água Verde': 13,
@@ -421,20 +390,22 @@ def consulta_tiny():
             else:
                 valor_motoboy = cidades[cidade]
             
-            barcode = Code128(numero_pedido, writer=ImageWriter())
-            barcode.save(f'{pasta_barcodes}/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
+            print(numero_pedido)
+            barcode = Code128(str(numero_pedido), writer=ImageWriter())
+            barcode.save(f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "//10.1.1.5/python/ttk-theme/arial.ttf"})
             
             # Criação do PDF
             regex = r"(.*?)\s*" + "ICMS"
             match = re.search(regex, obs, re.DOTALL)
-            c = canvas.Canvas(f"{pasta_etiquetas}/{numero_nota}.pdf", pagesize=(300, 400))
-            logo_miligrama = curr_dir + '/icon-Miligrama.ico'
-            barcode_i = f'{pasta_barcodes}/barcode_{numero_pedido}.png'
+            c = canvas.Canvas(f"//10.1.1.5/j/python/arquivos/etiquetas/{numero_nota}.pdf", pagesize=(300, 400))
+            logo_miligrama = '//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico'
+            barcode_i = f'//10.1.1.5/j/python/arquivos/etiquetas/barcodes/barcode_{numero_pedido}.png'
             x_start = 10
             y_start = 270
             text = c.beginText(165, 237)
             text.setFont("Helvetica", 7)
-            text.textLines(f"{match.group(1)}")
+            # text.textLines(f"{match.group(1)}")
+            text.textLines(obs)
             c.drawImage(logo_miligrama, x_start, y_start, width=40, preserveAspectRatio=True, mask='auto')
             c.setFont("Helvetica-Bold", 10)
             c.drawString(108, 375, f"PEDIDO {numero_pedido}")
@@ -468,8 +439,7 @@ def consulta_tiny():
             c.save()
             
             # Cria uma variável com o caminho do arquivo
-            # pdffile = r'{}\{}.pdf'.format(pasta_etiquetas, numero_nota)
-            pdffile = f'{pasta_etiquetas}\\{numero_nota}.pdf'
+            pdffile = r'\\10.1.1.5\j\python\arquivos\etiquetas\{}.pdf'.format(numero_nota)
             
             # Imprime o arquivo
             os.startfile(pdffile, 'print')
@@ -488,150 +458,38 @@ def consulta_tiny():
                 arquivo.write(str(lista))
             
             #Alterar a situação
-            alterar_situacao_pedido(id_pedido)
+            alterar_situacao_pedido_v3(ACCESS_TOKEN, id_pedido, 5)
             
             #Insere as chaves de nota em uma lista para verificação
             chaves.append(chave)
-
     pedido.delete(0, tk.END)
-
-
-def pesquisar_id_pedido_miliapp(params):
-    #Definições para busca api
-    url = "https://api.fmiligrama.com/vendas"
-    
-    #Consulta para obter id da nota na tiny
-    response = requests.get(url=url, params=params).json()
-
-    #Armazena uma variável para checar se o pedido foi encontrado
-    check = response['metadata']['count']
-
-    if check != 0:
-        #Armazena a resposta com os dados do pedido
-        resposta_pedido = response['data']
-        
-        #Armazena o ID do pedido Tiny
-        id_pedido = resposta_pedido[0]['idPedidoTiny']
-
-        return id_pedido
-    else:
-        return None
-
-def obter_pedido(id_pedido):
-    status = 0
-    codigo_erro = 0
-    while status != 'OK':
-        url = "https://api.tiny.com.br/api2/pedido.obter.php"
-        data = {
-            "token": TOKEN_TINY,
-            "id": id_pedido,
-            "formato": 'json'
-        }
-        response = requests.get(url=url, params=data).json()
-
-        status = response['retorno']['status']
-        print(f'status obter_pedido: {status}')
-        if status == 'Erro':
-            codigo_erro = response['retorno']['codigo_erro']
-            print(f'codigo_erro obter_pedido: {codigo_erro}')
-            if codigo_erro == 32:
-                return None
-        
-    return response['retorno']['pedido']
-
-def alterar_situacao_pedido(id_pedido):
-    status = 0
-    codigo_erro = 0
-    while status != 'OK':
-        url = 'https://api.tiny.com.br/api2/pedido.alterar.situacao'
-        data = {'token': TOKEN_TINY,
-            'id': id_pedido,
-            'situacao': 'enviado',
-            'formato': 'json'
-        }
-        response = requests.post(url=url, data=data).json()
-        
-        status = response['retorno']['status']
-        print(f'status obter_pedido: {status}')
-        if status == 'Erro':
-            codigo_erro = response['retorno']['codigo_erro']
-            print(f'codigo_erro obter_pedido: {codigo_erro}')
-            if codigo_erro == 32:
-                return None
-    return
-
-def pesquisar_nota_fiscal(numero_nota):
-    url = "https://api.tiny.com.br/api2/notas.fiscais.pesquisa.php"
-    data = {
-        "token": TOKEN_TINY,
-        "numero": numero_nota,
-        "formato": 'json'
-    }
-    response = requests.get(url=url, params=data).json()
-    status = response['retorno']['status']
-    if status == 'Erro':
-        messagebox.showerror("Erro", "Pedido sem nota fiscal")
-    else:
-        return response['retorno']['notas_fiscais'][0]['nota_fiscal']
-
-def buscar_nota_fiscal(id_nota):
-    status = 0
-    codigo_erro = 0
-    while status != 'OK':
-        url = "https://api.tiny.com.br/api2/nota.fiscal.obter.php"
-        data = {
-            "token": TOKEN_TINY,
-            "id": id_nota,
-            "formato": 'json'
-        }
-        response = requests.get(url=url, params=data).json()
-
-        status = response['retorno']['status']
-        print(f'status buscar_nota_fiscal: {status}')
-        if status == 'Erro':
-            codigo_erro = response['retorno']['codigo_erro']
-            if (codigo_erro == 32):
-                messagebox.showerror("Erro", "Pedido sem nota fiscal")
-                return None
-        else:
-            return response['retorno']['nota_fiscal']
-        
-def consulta_intelipost(numero_nota):
-    url = f"https://api.intelipost.com.br/api/v1/shipment_order/invoice/" + str(numero_nota)
-    headers = {
-        "Accept": "application/json",
-        "api-key": API_INTELIPOST
-    }
-
-    response = requests.get(url, headers=headers, timeout=5).json()
-    return response
-
-def obtem_etiqueta_intelipost(pedido_envio, numero_volume):
-    url = "https://api.intelipost.com.br/api/v1/shipment_order/get_label/{}/{}".format(pedido_envio, numero_volume)
-    headers = {
-        "Accept": "application/json",
-        "api-key": API_INTELIPOST
-    }
-    
-    #armazena a resposta da consulta
-    response = requests.get(url, headers=headers).json()
-    return response
 
 def acionar_botao(event):
     consulta_tiny()
+
+def localidade(event):
+    global origem
+    origem = options_origem.get()
+
+#Seleção da conta de origem
+options_origem = ttk.Combobox(root, state='readonly', values=['Curitiba', 'Fortaleza'])
+options_origem.bind("<<ComboboxSelected>>", localidade)
+options_origem.grid(row=1, column=1)
+
+local_origem = tk.Label(root, text='Selecione origem do pedido')
+local_origem.grid(row=0, column=1)
 
 def tipo(event):
     global tipo_leitor
     tipo_leitor = options.get()
 
-
 #Seleção de tipo leitura de pedido ou nota
 options = ttk.Combobox(root, state='readonly', values=['Pedido', 'Nota Fiscal'])
 options.bind("<<ComboboxSelected>>", tipo)
-options.grid(row=1, column=1)
+options.grid(row=4, column=1)
 
 tipo_leitura = tk.Label(root, text='Selecione pedido ou nota fiscal')
-tipo_leitura.grid(row=0, column=1)
+tipo_leitura.grid(row=3, column=1)
 
 #Label do pedido
 label_pedido = tk.Label(root, text="Digite o número do pedido")

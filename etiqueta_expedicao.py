@@ -15,8 +15,8 @@ from api_miliapp import obter_tokens_tiny, get_vendas_filtro
 from api_tiny_v3 import obter_notas_v3, obter_nota_fiscal_v3, obter_pedido_v3, alterar_situacao_pedido_v3, obter_pedidos_v3
 from api_intelipost import consulta_entrega_nota, obter_etiqueta
 from impressao_etiqueta import gerar_root, preparar_romaneios
-load_dotenv("//10.1.1.5/j/python/ttk-theme/.env")
 
+load_dotenv("//10.1.1.5/j/python/ttk-theme/.env")
 TOKEN_TINY = str(os.getenv("TOKEN_TINY"))
 TOKEN_INTELIPOST = str(os.getenv("API_KEY_INTELIPOST"))
 
@@ -31,7 +31,12 @@ def consulta_tiny():
     user_input = pedido.get()
     
     # Busca o access token da API V3 da Tiny
-    origin = 'miligrama'
+    if origem == 'Curitiba':
+        origin = 'miligrama'
+        cnpj = '07413904000198'
+    elif origem == 'Fortaleza':
+        origin = 'miligrama_nordeste'
+        cnpj = '56982667000191'
     ACCESS_TOKEN, REFRESH_TOKEN = obter_tokens_tiny(origin)
 
     # Obtém o id_pedido
@@ -42,14 +47,16 @@ def consulta_tiny():
             nota_fiscal = None
             numero_nota = None
             params = {
-                'numero_tiny': numero_pedido
+                'numero_tiny': numero_pedido,
+                'cnpj': cnpj
             }
         elif tipo_leitor == 'Nota Fiscal':
             print('buscando pela nota fiscal...')
             nota_fiscal = None
             numero_nota = user_input
             params = {
-                'numero_nota_fiscal': numero_nota
+                'numero_nota_fiscal': numero_nota,
+                'cnpj': cnpj
             }
         else:
             messagebox.showerror('Erro', 'Selecione o tipo de leitura!')
@@ -459,6 +466,18 @@ def consulta_tiny():
 
 def acionar_botao(event):
     consulta_tiny()
+
+def localidade(event):
+    global origem
+    origem = options_origem.get()
+
+#Seleção da conta de origem
+options_origem = ttk.Combobox(root, state='readonly', values=['Curitiba', 'Fortaleza'])
+options_origem.bind("<<ComboboxSelected>>", localidade)
+options_origem.grid(row=1, column=1)
+
+local_origem = tk.Label(root, text='Selecione origem do pedido')
+local_origem.grid(row=0, column=1)
 
 def tipo(event):
     global tipo_leitor
