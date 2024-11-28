@@ -486,11 +486,10 @@ def tipo(event):
 #Seleção de tipo leitura de pedido ou nota
 options = ttk.Combobox(root, state='readonly', values=['Pedido', 'Nota Fiscal'])
 options.bind("<<ComboboxSelected>>", tipo)
-options.grid(row=1, column=1)
+options.grid(row=4, column=1)
 
 tipo_leitura = tk.Label(root, text='Selecione pedido ou nota fiscal')
-tipo_leitura.grid(row=0, column=1)
-
+tipo_leitura.grid(row=3, column=1)
 #Label do pedido
 label_pedido = tk.Label(root, text="Digite o número do pedido")
 # label_pedido.place(x=40 , y=50)
