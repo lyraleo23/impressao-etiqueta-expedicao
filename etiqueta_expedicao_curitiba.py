@@ -23,7 +23,7 @@ TOKEN_INTELIPOST = str(os.getenv("API_KEY_INTELIPOST"))
 USUARIOS_EXP = json.loads(os.getenv("USUARIOS_EXP"))
 
 root = gerar_root()
-curr_dir, nome_arquivo, arquivo_motoboy, pasta_etiquetas, pasta_barcodes = preparar_romaneios_fortaleza()
+curr_dir, nome_arquivo, arquivo_motoboy, pasta_etiquetas, pasta_barcodes = preparar_romaneios()
 chaves = []
 
 def consulta_tiny():

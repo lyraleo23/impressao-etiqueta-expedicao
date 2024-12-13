@@ -2,6 +2,8 @@ import requests
 import wget
 import os
 import re
+import datetime
+import json
 import tkinter as tk
 from dotenv import load_dotenv
 from reportlab.pdfgen import canvas
@@ -11,14 +13,14 @@ from barcode.writer import ImageWriter
 from datetime import datetime
 from tkinter import ttk
 from tkinter import messagebox
-from api_miliapp import obter_tokens_tiny, get_vendas_filtro
+from api_miliapp import obter_tokens_tiny, get_vendas_filtro, cadastrar_bip
 from api_tiny_v3 import obter_notas_v3, obter_nota_fiscal_v3, obter_pedido_v3, alterar_situacao_pedido_v3, obter_pedidos_v3
 from api_intelipost import consulta_entrega_nota, obter_etiqueta
-from impressao_etiqueta import gerar_root, preparar_romaneios
+from impressao_etiqueta import gerar_root, preparar_romaneios, preparar_romaneios_fortaleza
 
 load_dotenv("//10.1.1.5/j/python/ttk-theme/.env")
-TOKEN_TINY = str(os.getenv("TOKEN_TINY"))
 TOKEN_INTELIPOST = str(os.getenv("API_KEY_INTELIPOST"))
+USUARIOS_EXP = json.loads(os.getenv("USUARIOS_EXP"))
 
 root = gerar_root()
 nome_arquivo, arquivo_motoboy = preparar_romaneios()
@@ -38,6 +40,10 @@ def consulta_tiny():
         origin = 'miligrama_nordeste'
         cnpj = '56982667000191'
     ACCESS_TOKEN, REFRESH_TOKEN = obter_tokens_tiny(origin)
+
+    if user == '':
+        messagebox.showerror('Erro', f'Selecione um usuário')
+        return
 
     # Obtém o id_pedido
     try:
@@ -464,41 +470,74 @@ def consulta_tiny():
             chaves.append(chave)
     pedido.delete(0, tk.END)
 
+    date = datetime.now()
+    bip = {
+        'user': user,
+        'origin': origem,
+        'step': 'Expedição',
+        'type': tipo_leitor,
+        'number': user_input,
+        'date': date.strftime("%x %X")
+    }
+    print(bip)
+    cadastrar_bip(bip)
+
 def acionar_botao(event):
     consulta_tiny()
 
+#Seleção da conta de origem
 def localidade(event):
     global origem
     origem = options_origem.get()
 
-#Seleção da conta de origem
+local_origem = tk.Label(root, text='Selecione origem do pedido')
+local_origem.grid(row=0, column=1)
+
 options_origem = ttk.Combobox(root, state='readonly', values=['Curitiba', 'Fortaleza'])
 options_origem.bind("<<ComboboxSelected>>", localidade)
 options_origem.grid(row=1, column=1)
 
-local_origem = tk.Label(root, text='Selecione origem do pedido')
-local_origem.grid(row=0, column=1)
-
+#Seleção de tipo leitura de pedido ou nota
 def tipo(event):
     global tipo_leitor
     tipo_leitor = options.get()
 
-#Seleção de tipo leitura de pedido ou nota
+tipo_leitura = tk.Label(root, text='Selecione pedido ou nota fiscal')
+tipo_leitura.grid(row=3, column=1)
+
 options = ttk.Combobox(root, state='readonly', values=['Pedido', 'Nota Fiscal'])
 options.bind("<<ComboboxSelected>>", tipo)
 options.grid(row=4, column=1)
 
-tipo_leitura = tk.Label(root, text='Selecione pedido ou nota fiscal')
-tipo_leitura.grid(row=3, column=1)
 #Label do pedido
 label_pedido = tk.Label(root, text="Digite o número do pedido")
-# label_pedido.place(x=40 , y=50)
 label_pedido.grid(row=5, column=1)
 
 #Variável para obter input do usuário
 pedido = tk.Entry(root)
-# pedido.place(x=40 , y=75)
 pedido.grid(row=6, column=1)
+
+# Seleção do usuário
+def select_user(event):
+    global user
+    user = options_users.get()
+
+usuario = tk.Label(root, text='Selecione o usuário')
+usuario.grid(row=7, column=1)
+
+# user_list = [
+#     'Bianca Bruna da Silva',
+#     'Juliana da Silva Vidal',
+#     'Maria Herlane Silva Araujo',
+#     'Marco Pedroso',
+#     'David Fernandes Dantas',
+#     'Amanda Gabrieli Gomes',
+#     'LL'
+# ]
+
+options_users = ttk.Combobox(root, state='readonly', values=USUARIOS_EXP)
+options_users.bind("<<ComboboxSelected>>", select_user)
+options_users.grid(row=8, column=1)
 
 # Vincula o evento de pressionar a tecla Enter à janela principal
 root.bind('<Return>', acionar_botao)

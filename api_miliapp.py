@@ -63,8 +63,20 @@ def obter_tokens_tiny(origin):
         if token['origin'] == origin:
             access_token = token['access_token']
             refresh_token = token['refresh_token']
-    
-    # access_token = response[-1]['access_token']
-    # refresh_token = response[-1]['refresh_token']
 
     return access_token, refresh_token
+
+def cadastrar_bip(bip):
+    url = f'https://api.fmiligrama.com/bip'
+
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+    payload = json.dumps(bip)
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    print(response)
+    response = response.json()
+
+    return response
