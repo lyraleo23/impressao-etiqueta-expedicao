@@ -7,7 +7,7 @@ import json
 import tkinter as tk
 from dotenv import load_dotenv
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Image
+# from reportlab.platypus import Image
 from barcode import Code128
 from barcode.writer import ImageWriter
 from datetime import datetime
@@ -20,6 +20,7 @@ from impressao_etiqueta import gerar_root, preparar_romaneios, preparar_romaneio
 
 load_dotenv()
 TOKEN_INTELIPOST = str(os.getenv("API_KEY_INTELIPOST"))
+TOKEN_MILIAPP = str(os.getenv("TOKEN_MILIAPP"))
 USUARIOS_EXP = json.loads(os.getenv("USUARIOS_EXP"))
 
 root = gerar_root()
@@ -39,7 +40,7 @@ def consulta_tiny():
     elif origem == 'Fortaleza':
         origin = 'miligrama_nordeste'
         cnpj = '56982667000191'
-    ACCESS_TOKEN, REFRESH_TOKEN = obter_tokens_tiny(origin)
+    ACCESS_TOKEN, REFRESH_TOKEN = obter_tokens_tiny(TOKEN_MILIAPP, origin)
 
     if user == '':
         messagebox.showerror('Erro', f'Selecione um usuário')
@@ -67,7 +68,7 @@ def consulta_tiny():
         else:
             messagebox.showerror('Erro', 'Selecione o tipo de leitura!')
             return
-        retorno = get_vendas_filtro(params)
+        retorno = get_vendas_filtro(TOKEN_MILIAPP, params)
         id_pedido = retorno['idPedidoTiny']
         print(f'id_pedido: {id_pedido}')
     except Exception as e:
@@ -488,7 +489,7 @@ def consulta_tiny():
         'date': date.strftime("%x %X")
     }
     print(bip)
-    cadastrar_bip(bip)
+    cadastrar_bip(TOKEN_MILIAPP, bip)
 
 def acionar_botao(event):
     consulta_tiny()
