@@ -9,7 +9,7 @@ def gerar_root():
     # root.tk.call('source', '//10.1.1.5/j/python/ttk-theme/Forest-ttk-theme-master/forest-dark.tcl')
     # ttk.Style().theme_use('forest-dark')
     # root.iconbitmap('//10.1.1.5/j/python/ttk-theme/icon-Miligrama.ico')
-    root.geometry("250x180")
+    root.geometry("250x250")
     root.resizable(0, 0)
     return root
 
@@ -87,7 +87,7 @@ def preparar_romaneios_fortaleza():
         os.makedirs(pasta_etiquetas)
 
     # Pasta barcodes
-    pasta_barcodes = curr_dir + f'\\barcodes'
+    pasta_barcodes = pasta_etiquetas + f'\\barcodes'
     if not os.path.exists(pasta_barcodes):
         os.makedirs(pasta_barcodes)
     

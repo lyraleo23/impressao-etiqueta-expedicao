@@ -471,6 +471,11 @@ def consulta_tiny():
             
             #Insere as chaves de nota em uma lista para verificação
             chaves.append(chave)
+    
+    # Mostra o campo com o valor da variável numero_nota
+    if numero_nota:
+        label_numero_nota = tk.Label(root, text=f"Número da Nota: {numero_nota}")
+        label_numero_nota.grid(row=9, column=1, columnspan=2, sticky='w')
     pedido.delete(0, tk.END)
 
     date = datetime.now()

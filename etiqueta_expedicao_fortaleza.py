@@ -215,15 +215,15 @@ def consulta_tiny():
             obs = pedido_tiny['observacoes']
             
             barcode = Code128(str(numero_pedido), writer=ImageWriter())
-            barcode.save(f'{pasta_barcodes}/barcode_{numero_pedido}', options={"module_width":1, "module_height":40})
+            barcode.save(f'{pasta_barcodes}\\barcode_{numero_pedido}', options={"module_width":1, "module_height":40, "font_path": "\\arial.ttf"})
             
             regex = r"(.*?)\s*" + "ICMS"
             match = re.search(regex, obs, re.DOTALL)
             
             # Criação do PDF
-            c = canvas.Canvas(f"{pasta_etiquetas}/{numero_nota}.pdf", pagesize=(300, 400))
-            logo_miligrama = curr_dir + '/icon-Miligrama.ico'
-            barcode_i = f'{pasta_barcodes}/barcode_{numero_pedido}.png'
+            c = canvas.Canvas(f"{pasta_etiquetas}\\{numero_nota}.pdf", pagesize=(300, 400))
+            logo_miligrama = curr_dir + '\\icon-Miligrama.ico'
+            barcode_i = f'{pasta_barcodes}\\barcode_{numero_pedido}.png'
             x_start = 10
             y_start = 270
             text = c.beginText(165, 237)
@@ -401,14 +401,14 @@ def consulta_tiny():
             
             print(numero_pedido)
             barcode = Code128(str(numero_pedido), writer=ImageWriter())
-            barcode.save(f'{pasta_barcodes}/barcode_{numero_pedido}', options={"module_width":1, "module_height":40})
+            barcode.save(f'{pasta_barcodes}\\barcode_{numero_pedido}', options={"module_width":1, "module_height":40})
             
             # Criação do PDF
             regex = r"(.*?)\s*" + "ICMS"
             match = re.search(regex, obs, re.DOTALL)
-            c = canvas.Canvas(f"{pasta_etiquetas}/{numero_nota}.pdf", pagesize=(300, 400))
-            logo_miligrama = curr_dir + '/icon-Miligrama.ico'
-            barcode_i = f'{pasta_barcodes}/barcode_{numero_pedido}.png'
+            c = canvas.Canvas(f"{pasta_etiquetas}\\{numero_nota}.pdf", pagesize=(300, 400))
+            logo_miligrama = curr_dir + '\\icon-Miligrama.ico'
+            barcode_i = f'{pasta_barcodes}\\barcode_{numero_pedido}.png'
             x_start = 10
             y_start = 270
             text = c.beginText(165, 237)
@@ -471,6 +471,11 @@ def consulta_tiny():
             
             #Insere as chaves de nota em uma lista para verificação
             chaves.append(chave)
+    
+    # Mostra o campo com o valor da variável numero_nota
+    if numero_nota:
+        label_numero_nota = tk.Label(root, text=f"Número da Nota: {numero_nota}")
+        label_numero_nota.grid(row=9, column=1, columnspan=2, sticky='w')
     pedido.delete(0, tk.END)
 
     date = datetime.now()
